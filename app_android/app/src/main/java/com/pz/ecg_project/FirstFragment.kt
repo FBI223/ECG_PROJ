@@ -14,31 +14,32 @@ import com.pz.ecg_project.databinding.FragmentFirstBinding
 class FirstFragment : Fragment() {
 
     private var _binding: FragmentFirstBinding? = null
-
-    // This property is only valid between onCreateView and
-    // onDestroyView.
     private val binding get() = _binding!!
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
         return binding.root
-
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Example button click navigation to SecondFragment
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
         }
     }
 
+    // Method to update the UI (TextView) with a new message
+    fun updateUI(message: String) {
+        binding.statusTextView.text = message
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
+        _binding = null // Prevent memory leaks
     }
 }

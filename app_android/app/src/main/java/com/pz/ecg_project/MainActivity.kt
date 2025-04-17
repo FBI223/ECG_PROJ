@@ -1,33 +1,79 @@
 package com.pz.ecg_project
 
+import android.Manifest
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
+import android.content.pm.PackageManager
 import android.os.Bundle
-import com.google.android.material.snackbar.Snackbar
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
-import android.view.Menu
-import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresPermission
+import androidx.core.app.ActivityCompat
+import androidx.navigation.ui.navigateUp
+import com.google.android.material.snackbar.Snackbar
 import com.pz.ecg_project.databinding.ActivityMainBinding
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
+    private lateinit var bluetoothConnection: BluetoothConnection
+    private val targetUUID = UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Initialize the binding for the layout
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.toolbar)
+        // Initialize Bluetooth connection
+        bluetoothConnection = BluetoothConnection(this, targetUUID, object : BluetoothConnection.Callback {
+            @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+            override fun onDeviceFound(device: BluetoothDevice) {
+                Log.d("MainActivity", "Found BLE device: ${device.name} (${device.address})")
+                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
+                firstFragment?.updateUI("Device found: ${device.name}")
+                bluetoothConnection.stopScan()
+                bluetoothConnection.connectToDevice(device)
+            }
 
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
+            @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+            override fun onConnected(gatt: BluetoothGatt) {
+                Log.d("MainActivity", "Connected to BLE device: ${gatt.device.name}")
+                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
+                firstFragment?.updateUI("Connected to: ${gatt.device.name}")
+            }
+
+            override fun onDisconnected() {
+                Log.d("MainActivity", "Disconnected from BLE device")
+                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
+                firstFragment?.updateUI("Disconnected.")
+            }
+
+            override fun onScanFinished() {
+                Log.d("MainActivity", "BLE scan finished")
+                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
+                firstFragment?.updateUI("No device found.")
+            }
+        })
+
+        // Request necessary permissions
+        requestBluetoothPermissions()
+
+        // Set up the ActionBar and navigation components
+        val navController = findNavController(R.id.nav_host_fragment_content_main)  // Ensure we use the correct id
         appBarConfiguration = AppBarConfiguration(navController.graph)
         setupActionBarWithNavController(navController, appBarConfiguration)
 
+        // Use the FAB button (optional)
         binding.fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                 .setAction("Action", null)
@@ -35,16 +81,44 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun requestBluetoothPermissions() {
+        val permissions = mutableListOf(
+            Manifest.permission.BLUETOOTH_SCAN,
+            Manifest.permission.BLUETOOTH_CONNECT
+        )
+
+        val notGranted = permissions.filter {
+            ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (notGranted.isEmpty()) {
+            bluetoothConnection.startScan()
+        } else {
+            permissionLauncher.launch(notGranted.toTypedArray())
+        }
+    }
+
+    private val permissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { result ->
+        if (result.all { it.value }) {
+            bluetoothConnection.startScan()
+        } else {
+            Log.e("MainActivity", "BLE permissions not granted")
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        bluetoothConnection.disconnect()
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
         return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_settings -> true
             else -> super.onOptionsItemSelected(item)
@@ -53,7 +127,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSupportNavigateUp(): Boolean {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
-        return navController.navigateUp(appBarConfiguration)
-                || super.onSupportNavigateUp()
+        return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 }
