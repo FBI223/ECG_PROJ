@@ -15,16 +15,22 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.navigateUp
 import com.google.android.material.snackbar.Snackbar
 import com.pz.ecg_project.databinding.ActivityMainBinding
 import java.util.UUID
+import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
     private lateinit var bluetoothConnection: BluetoothConnection
+    private val viewModel: SharedViewModel by viewModels()
     private val targetUUID = UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb")
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -39,8 +45,7 @@ class MainActivity : AppCompatActivity() {
             @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
             override fun onDeviceFound(device: BluetoothDevice) {
                 Log.d("MainActivity", "Found BLE device: ${device.name} (${device.address})")
-                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
-                firstFragment?.updateUI("Device found: ${device.name}")
+                viewModel.updateMessage("Device found: ${device.name}")
                 bluetoothConnection.stopScan()
                 bluetoothConnection.connectToDevice(device)
             }
@@ -48,25 +53,25 @@ class MainActivity : AppCompatActivity() {
             @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
             override fun onConnected(gatt: BluetoothGatt) {
                 Log.d("MainActivity", "Connected to BLE device: ${gatt.device.name}")
-                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
-                firstFragment?.updateUI("Connected to: ${gatt.device.name}")
+                viewModel.updateMessage("Connected to: ${gatt.device.name}")
             }
 
             override fun onDisconnected() {
                 Log.d("MainActivity", "Disconnected from BLE device")
-                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
-                firstFragment?.updateUI("Disconnected.")
+                viewModel.updateMessage("Disconnected.")
             }
 
             override fun onScanFinished() {
                 Log.d("MainActivity", "BLE scan finished")
-                val firstFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_content_main) as? FirstFragment
-                firstFragment?.updateUI("No device found.")
+                viewModel.updateMessage("No device found.")
             }
         })
 
         // Request necessary permissions
         requestBluetoothPermissions()
+
+        // Set up the toolbar as ActionBar
+        setSupportActionBar(binding.toolbar)
 
         // Set up the ActionBar and navigation components
         val navController = findNavController(R.id.nav_host_fragment_content_main)  // Ensure we use the correct id
@@ -79,6 +84,15 @@ class MainActivity : AppCompatActivity() {
                 .setAction("Action", null)
                 .setAnchorView(R.id.fab).show()
         }
+
+        lifecycleScope.launch {
+            while (true) {
+                delay(100)
+                val simulatedEcg = (0..100).random() / 20f // generates 0.0 to 5.0
+                viewModel.pushEcgData(simulatedEcg)
+            }
+        }
+
     }
 
     private fun requestBluetoothPermissions() {
