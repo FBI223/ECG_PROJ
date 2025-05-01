@@ -31,7 +31,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var bluetoothConnection: BluetoothConnection
     private val viewModel: SharedViewModel by viewModels()
-    private val targetUUID = UUID.fromString("0000180D-0000-1000-8000-00805f9b34fb")
+    private val serviceUUID = UUID.fromString("bd37e8b4-1bcf-4f42-bdd1-bebea1a51a1a")
+    private val characteristicUUID = UUID.fromString("7a1e8b7d-9a3e-4657-927b-339adddc2a5b")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,7 +42,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Initialize Bluetooth connection
-        bluetoothConnection = BluetoothConnection(this, targetUUID, object : BluetoothConnection.Callback {
+        bluetoothConnection = BluetoothConnection(this, serviceUUID, object : BluetoothConnection.Callback {
             @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
             override fun onDeviceFound(device: BluetoothDevice) {
                 Log.d("MainActivity", "Found BLE device: ${device.name} (${device.address})")

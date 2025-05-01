@@ -6,6 +6,7 @@
     <string name="second_fragment_label">Second Fragment</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
+    <string name="load">Load Waveform</string>
 
     <string name="welcome">Welcome to the Heart Arrhythmia Detector app!</string>
     <string name="searching_for_ble_device">Searching for BLE device…</string>
