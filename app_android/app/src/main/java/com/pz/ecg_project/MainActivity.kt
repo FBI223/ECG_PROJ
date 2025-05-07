@@ -4,6 +4,7 @@ import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -33,6 +34,7 @@ class MainActivity : AppCompatActivity() {
     private val viewModel: SharedViewModel by viewModels()
     private val serviceUUID = UUID.fromString("bd37e8b4-1bcf-4f42-bdd1-bebea1a51a1a")
     private val characteristicUUID = UUID.fromString("7a1e8b7d-9a3e-4657-927b-339adddc2a5b")
+    private val deviceName = "ESP32_EKG"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,7 +44,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Initialize Bluetooth connection
-        bluetoothConnection = BluetoothConnection(this, serviceUUID, object : BluetoothConnection.Callback {
+        bluetoothConnection = BluetoothConnection(this, deviceName, serviceUUID, characteristicUUID, object : BluetoothConnection.Callback {
             @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
             override fun onDeviceFound(device: BluetoothDevice) {
                 Log.d("MainActivity", "Found BLE device: ${device.name} (${device.address})")
@@ -97,10 +99,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestBluetoothPermissions() {
-        val permissions = mutableListOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_CONNECT
-        )
+        val permissions = mutableListOf<String>()
+
+        // Android 12+ (API 31+): Requires BLUETOOTH_SCAN and CONNECT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
+        } else {
+            // For backward compatibility (Android 6+)
+            permissions.add(Manifest.permission.BLUETOOTH)
+            permissions.add(Manifest.permission.BLUETOOTH_ADMIN)
+        }
+
+        // Required on Android 10+ for BLE scan results
+        permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
 
         val notGranted = permissions.filter {
             ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -119,9 +131,11 @@ class MainActivity : AppCompatActivity() {
         if (result.all { it.value }) {
             bluetoothConnection.startScan()
         } else {
-            Log.e("MainActivity", "BLE permissions not granted")
+            Log.e("MainActivity", "Required BLE permissions were not granted.")
         }
     }
+
+
 
     override fun onDestroy() {
         super.onDestroy()
