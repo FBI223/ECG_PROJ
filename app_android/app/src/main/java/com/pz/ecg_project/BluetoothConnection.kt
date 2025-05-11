@@ -5,24 +5,23 @@ import android.bluetooth.*
 import android.bluetooth.le.*
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import java.util.*
-import android.os.ParcelUuid
 import androidx.annotation.RequiresPermission
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class BluetoothConnection(
     private val context: Context,
     private val deviceName: String,
     private val serviceUUID: UUID,
     private val characteristicUUID: UUID,
-    private val callback: Callback
+    private val callback: Callback,
 ) {
     private val cccDescriptorUUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
     interface Callback {
@@ -31,6 +30,7 @@ class BluetoothConnection(
         fun onDisconnected()
         fun onScanFinished()
     }
+    val incomingData: ConcurrentLinkedQueue<Float> = ConcurrentLinkedQueue()
 
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         val manager = context.getSystemService(BluetoothManager::class.java)
@@ -214,8 +214,7 @@ class BluetoothConnection(
                 val ecgValue = buffer.float
                 Log.d("BLE", "📈 ECG Sample: $ecgValue")
 
-                // Use the sample (e.g., update ViewModel)
-                //viewModel.pushEcgData(ecgValue)
+                incomingData.add(ecgValue)
             } else {
                 // Treat it as part of a metadata string
                 val part = String(data, Charsets.UTF_8)
@@ -231,7 +230,6 @@ class BluetoothConnection(
                     val fullMeta = metaBuffer.toString()
                     Log.d("BLE", "📄 Full META received: $fullMeta")
 
-                    // Optional: parse JSON
                     try {
                         val json = fullMeta.removePrefix("META;")
                         val obj = JSONObject(json)

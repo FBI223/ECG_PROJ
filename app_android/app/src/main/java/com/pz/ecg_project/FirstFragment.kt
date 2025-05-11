@@ -62,8 +62,8 @@ class FirstFragment : Fragment() {
         chart.legend.isEnabled = false
         chart.axisRight.isEnabled = false
         chart.xAxis.isEnabled = false
-        chart.axisLeft.axisMinimum = 0f
-        chart.axisLeft.axisMaximum = 5f
+        chart.axisLeft.axisMinimum = -2f
+        chart.axisLeft.axisMaximum = 2f
 
         viewModel.ecgValue.observe(viewLifecycleOwner) { value ->
             addEcgEntry(value)

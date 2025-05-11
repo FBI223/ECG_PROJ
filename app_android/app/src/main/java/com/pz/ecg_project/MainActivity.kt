@@ -16,7 +16,6 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresPermission
 import androidx.core.app.ActivityCompat
-import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.navigateUp
 import com.google.android.material.snackbar.Snackbar
 import com.pz.ecg_project.databinding.ActivityMainBinding
@@ -25,6 +24,7 @@ import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
 
@@ -90,11 +90,23 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             while (true) {
-                delay(100)
-                val simulatedEcg = (0..100).random() / 20f // generates 0.0 to 5.0
-                viewModel.pushEcgData(simulatedEcg)
+                delay(8)
+                val nextEcgValue = bluetoothConnection.incomingData.poll()
+                if (nextEcgValue != null) {
+                    viewModel.pushEcgData(nextEcgValue)
+                }
             }
         }
+
+        val randomData = FloatArray(540)
+        for (i in 0 until 540) {
+            randomData[i] = Random.nextFloat() * 2 - 1
+        }
+
+        val ecgPredictor = EcgPredictor(applicationContext)
+
+        val predictedClass = ecgPredictor.predict(randomData);
+        Log.d("Prediction", "Predicted class: $predictedClass")
 
     }
 
