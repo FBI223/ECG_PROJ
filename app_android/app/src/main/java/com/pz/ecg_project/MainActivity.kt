@@ -21,8 +21,10 @@ import com.pz.ecg_project.databinding.ActivityMainBinding
 import java.util.UUID
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Collections
 import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
@@ -87,29 +89,39 @@ class MainActivity : AppCompatActivity() {
                 .setAnchorView(R.id.fab).show()
         }
 
+        val ecgDataList = Collections.synchronizedList(mutableListOf<Float>())
+
         lifecycleScope.launch {
             bluetoothConnection.ecgFlow.collect { value ->
                 viewModel.pushEcgData(value)
+                ecgDataList.add(value)
             }
         }
 
-        val randomData = FloatArray(540)
-        for (i in 0 until 540) {
-            randomData[i] = Random.nextFloat() * 2 - 1
+        lifecycleScope.launch(Dispatchers.IO)  {
+            Thread.sleep(20000)
+
+            val currData: FloatArray
+            synchronized(ecgDataList) {
+                currData = ecgDataList.toFloatArray()
+            }
+
+            val ecgPredictor = EcgPredictor(applicationContext)
+
+            val waveform = Waveform(128, currData)
+            waveform.fftResample(360)
+
+            val peaks = waveform.detectQRS()
+            val windows = waveform.extractWindows(peaks)
+
+            for (i in peaks.indices) {
+                val peak = peaks[i]
+                Log.d("Peaks", "QRS peak found at: $peak")
+                val predictedClass = ecgPredictor.predict(windows[i])
+                Log.d("Prediction", "Peak $i, Predicted class: $predictedClass")
+            }
+            Log.d("Prediction", "End")
         }
-
-        val waveform = Waveform(128, randomData)
-        waveform.fftResample(360)
-
-        val peaks = waveform.detectQRS()
-        for (i in peaks.indices) {
-            Log.d("Peaks", "QRS peak found at: $i")
-        }
-
-        val ecgPredictor = EcgPredictor(applicationContext)
-
-        val predictedClass = ecgPredictor.predict(randomData)
-        Log.d("Prediction", "Predicted class: $predictedClass")
 
     }
 

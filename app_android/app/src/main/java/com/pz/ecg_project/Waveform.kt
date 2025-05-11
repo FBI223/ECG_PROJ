@@ -3,6 +3,25 @@ import org.jtransforms.fft.DoubleFFT_1D
 
 class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
 
+    fun extractWindows(
+        indices: List<Int>,
+        windowRadius: Int = 270
+    ): Array<FloatArray> {
+        val windows = mutableListOf<FloatArray>()
+
+        for (index in indices) {
+            val start = index - windowRadius
+            val end = index + windowRadius - 1
+
+            if (start < 0 || end >= samples.size) continue
+
+            val window = samples.sliceArray(start..end)
+            windows.add(window)
+        }
+
+        return windows.toTypedArray()
+    }
+
     /**
      * Resamples an input ECG signal from one sampling frequency to another using FFT-based interpolation.
      *
@@ -102,11 +121,23 @@ class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
     }
 
     private fun bandpassFilter(signal: FloatArray): FloatArray {
-        val out = FloatArray(signal.size)
+        // Simple high-pass filter (cutoff ~0.5 Hz)
+        val highPass = FloatArray(signal.size)
+        val alpha = 0.995f
+        highPass[0] = signal[0]
         for (i in 1 until signal.size) {
-            out[i] = signal[i] - signal[i - 1]
+            highPass[i] = alpha * (highPass[i - 1] + signal[i] - signal[i - 1])
         }
-        return out
+
+        // Simple low-pass filter (cutoff ~15 Hz)
+        val lowPass = FloatArray(signal.size)
+        val beta = 0.1f
+        lowPass[0] = highPass[0]
+        for (i in 1 until signal.size) {
+            lowPass[i] = lowPass[i - 1] + beta * (highPass[i] - lowPass[i - 1])
+        }
+
+        return lowPass
     }
 
     private fun derivative(signal: FloatArray): FloatArray {
