@@ -6,20 +6,19 @@ class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
     /**
      * Resamples an input ECG signal from one sampling frequency to another using FFT-based interpolation.
      *
-     * @param inputArray The input ECG data array.
      * @param newFs The new sampling frequency (samples per second).
      */
-    fun fftResample(inputArray: FloatArray, oldFs: Int, newFs: Int) {
-        val inputSize = inputArray.size
-        val newSize = (inputSize * newFs / oldFs)
+    fun fftResample(newFs: Int) {
+        val inputSize = samples.size
+        val newSize = (inputSize * newFs / sampleRate)
 
         // Perform FFT
         val fft = DoubleFFT_1D(inputSize.toLong())
         val complexArray = DoubleArray(inputSize * 2)
 
         // Fill the complexArray with the input samples (real part, imaginary part is 0)
-        for (i in inputArray.indices) {
-            complexArray[i * 2] = inputArray[i].toDouble()  // Real part
+        for (i in samples.indices) {
+            complexArray[i * 2] = samples[i].toDouble()  // Real part
             complexArray[i * 2 + 1] = 0.0  // Imaginary part
         }
 
@@ -30,7 +29,7 @@ class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
         val resampledArray = DoubleArray(newSize * 2)
 
         // Calculate frequency scaling factor
-        val scalingFactor = newFs.toDouble() / oldFs.toDouble()
+        val scalingFactor = newFs.toDouble() / sampleRate.toDouble()
 
         // Rescale the frequencies by modifying the real part of the complex array
         for (i in 0 until newSize) {
@@ -58,11 +57,10 @@ class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
     /**
      * Resamples an input array of floats from one sampling frequency to another using linear interpolation.
      *
-     * @param inputArray The input data array.
      * @param newFs The new sampling frequency (samples per second).
      */
-    fun linearResample(inputArray: FloatArray, newFs: Int) {
-        val inputSize = inputArray.size
+    fun linearResample(newFs: Int) {
+        val inputSize = samples.size
         val newSize = inputSize * newFs / sampleRate  // Calculate new array size
         val resampledArray = FloatArray(newSize)
 
@@ -77,11 +75,11 @@ class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
 
             // If the indices are the same, just copy the value
             if (leftIndex == rightIndex) {
-                resampledArray[i] = inputArray[leftIndex]
+                resampledArray[i] = samples[leftIndex]
             } else {
                 // Interpolate between the two nearest samples
-                val leftSample = inputArray[leftIndex]
-                val rightSample = inputArray[rightIndex]
+                val leftSample = samples[leftIndex]
+                val rightSample = samples[rightIndex]
                 val weight = scaledIndex - leftIndex
                 resampledArray[i] = leftSample + weight * (rightSample - leftSample)
             }
@@ -92,11 +90,10 @@ class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
 
     /**
      * Method to detect QRS peaks in ECG signal.
-     * @param ecgSamples array of ECG float samples
      * @return indices of detected QRS peaks
      */
-    fun detectQRS(ecgSamples: FloatArray): List<Int> {
-        val filtered = bandpassFilter(ecgSamples)
+    fun detectQRS(): List<Int> {
+        val filtered = bandpassFilter(samples)
         val derivative = derivative(filtered)
         val squared = square(derivative)
         val integrated = movingWindowIntegration(squared)

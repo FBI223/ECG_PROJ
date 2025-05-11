@@ -4,7 +4,6 @@ import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
@@ -89,12 +88,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         lifecycleScope.launch {
-            while (true) {
-                delay(8)
-                val nextEcgValue = bluetoothConnection.incomingData.poll()
-                if (nextEcgValue != null) {
-                    viewModel.pushEcgData(nextEcgValue)
-                }
+            bluetoothConnection.ecgFlow.collect { value ->
+                viewModel.pushEcgData(value)
             }
         }
 
@@ -103,9 +98,17 @@ class MainActivity : AppCompatActivity() {
             randomData[i] = Random.nextFloat() * 2 - 1
         }
 
+        val waveform = Waveform(128, randomData)
+        waveform.fftResample(360)
+
+        val peaks = waveform.detectQRS()
+        for (i in peaks.indices) {
+            Log.d("Peaks", "QRS peak found at: $i")
+        }
+
         val ecgPredictor = EcgPredictor(applicationContext)
 
-        val predictedClass = ecgPredictor.predict(randomData);
+        val predictedClass = ecgPredictor.predict(randomData)
         Log.d("Prediction", "Predicted class: $predictedClass")
 
     }
@@ -113,17 +116,9 @@ class MainActivity : AppCompatActivity() {
     private fun requestBluetoothPermissions() {
         val permissions = mutableListOf<String>()
 
-        // Android 12+ (API 31+): Requires BLUETOOTH_SCAN and CONNECT
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            permissions.add(Manifest.permission.BLUETOOTH_SCAN)
-            permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            // For backward compatibility (Android 6+)
-            permissions.add(Manifest.permission.BLUETOOTH)
-            permissions.add(Manifest.permission.BLUETOOTH_ADMIN)
-        }
+        permissions.add(Manifest.permission.BLUETOOTH_SCAN)
+        permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
 
-        // Required on Android 10+ for BLE scan results
         permissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
 
         val notGranted = permissions.filter {

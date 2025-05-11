@@ -14,7 +14,9 @@ import androidx.annotation.RequiresPermission
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 
 class BluetoothConnection(
     private val context: Context,
@@ -30,7 +32,8 @@ class BluetoothConnection(
         fun onDisconnected()
         fun onScanFinished()
     }
-    val incomingData: ConcurrentLinkedQueue<Float> = ConcurrentLinkedQueue()
+    private val incomingDataChannel = Channel<Float>(Channel.UNLIMITED)
+    val ecgFlow: Flow<Float> = incomingDataChannel.receiveAsFlow()
 
     private val bluetoothAdapter: BluetoothAdapter? by lazy {
         val manager = context.getSystemService(BluetoothManager::class.java)
@@ -214,7 +217,7 @@ class BluetoothConnection(
                 val ecgValue = buffer.float
                 Log.d("BLE", "📈 ECG Sample: $ecgValue")
 
-                incomingData.add(ecgValue)
+                incomingDataChannel.trySend(ecgValue)
             } else {
                 // Treat it as part of a metadata string
                 val part = String(data, Charsets.UTF_8)
