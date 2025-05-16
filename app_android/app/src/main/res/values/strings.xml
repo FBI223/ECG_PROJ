@@ -9,5 +9,7 @@
     <string name="load">Load Waveform</string>
 
     <string name="welcome">Welcome to the Heart Arrhythmia Detector app!</string>
-    <string name="searching_for_ble_device">Searching for BLE device…</string>
+    <string name="searching_for_ble_device">Searching for heart monitoring device…</string>
+    <string name="loading_page">On this screen, you may load a previously saved signal.</string>
+
 </resources>

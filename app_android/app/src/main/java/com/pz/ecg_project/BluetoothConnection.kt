@@ -8,9 +8,9 @@ import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.app.ActivityCompat
-import java.util.*
+import java.util.UUID
 import androidx.annotation.RequiresPermission
+import androidx.core.app.ActivityCompat
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -65,8 +65,7 @@ class BluetoothConnection(
                     // for ActivityCompat#requestPermissions for more details.
                     return
                 }
-                else
-                    device.name
+                    else device.name
                 Log.d("BLE", "Found device: $deviceName (${device.address})")
 
                 if (foundName != null && foundName.contains(deviceName, ignoreCase = true)) {
@@ -136,21 +135,8 @@ class BluetoothConnection(
         callback.onScanFinished()
     }
 
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun connectToDevice(device: BluetoothDevice) {
-        if (ActivityCompat.checkSelfPermission(
-                context,
-                Manifest.permission.BLUETOOTH_CONNECT
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return
-        }
         gatt = device.connectGatt(context, false, gattCallback)
     }
 
@@ -193,9 +179,8 @@ class BluetoothConnection(
 
             val descriptor = characteristic.getDescriptor(cccDescriptorUUID)
             descriptor?.let {
-                it.value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE
-                val writeSuccess = gatt.writeDescriptor(it)
-                if (!writeSuccess) {
+                val writeSuccess = gatt.writeDescriptor(it, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
+                if (writeSuccess == 0) {
                     Log.e("BLE", "Failed to write descriptor for notifications")
                 }
             }
@@ -205,23 +190,21 @@ class BluetoothConnection(
 
         private val metaBuffer = StringBuilder()
 
-        @Suppress("DEPRECATION")
         override fun onCharacteristicChanged(
             gatt: BluetoothGatt,
-            characteristic: BluetoothGattCharacteristic
+            characteristic: BluetoothGattCharacteristic,
+            value: ByteArray
         ) {
-            val data = characteristic.value
-
-            if (data.size == 4) {
+            if (value.size == 4) {
                 // Probably a float (ECG sample)
-                val buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
+                val buffer = ByteBuffer.wrap(value).order(ByteOrder.LITTLE_ENDIAN)
                 val ecgValue = buffer.float
                 Log.d("BLE", "📈 ECG Sample: $ecgValue")
 
                 incomingDataChannel.trySend(ecgValue)
             } else {
                 // Treat it as part of a metadata string
-                val part = String(data, Charsets.UTF_8)
+                val part = String(value, Charsets.UTF_8)
 
                 if (part.startsWith("META;")) {
                     metaBuffer.clear() // New metadata message starting

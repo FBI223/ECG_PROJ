@@ -22,10 +22,8 @@ import java.util.UUID
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Collections
-import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
 
@@ -97,7 +95,7 @@ class MainActivity : AppCompatActivity() {
                 ecgDataList.add(value)
             }
         }
-
+        /*
         lifecycleScope.launch(Dispatchers.IO)  {
             Thread.sleep(20000)
 
@@ -109,7 +107,8 @@ class MainActivity : AppCompatActivity() {
             val ecgPredictor = EcgPredictor(applicationContext)
 
             val waveform = Waveform(128, currData)
-            waveform.fftResample(360)
+            //waveform.fftResample(360)
+            waveform.linearResample(360)
 
             val peaks = waveform.detectQRS()
             val windows = waveform.extractWindows(peaks)
@@ -122,7 +121,7 @@ class MainActivity : AppCompatActivity() {
             }
             Log.d("Prediction", "End")
         }
-
+*/
     }
 
     private fun requestBluetoothPermissions() {

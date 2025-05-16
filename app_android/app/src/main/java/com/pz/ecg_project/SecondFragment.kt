@@ -2,6 +2,7 @@ package com.pz.ecg_project
 
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,7 +13,6 @@ import androidx.core.content.ContextCompat
 import com.github.mikephil.charting.charts.LineChart
 import com.pz.ecg_project.databinding.FragmentSecondBinding
 import java.io.File
-import java.io.FileInputStream
 import java.io.IOException
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
@@ -28,15 +28,22 @@ class SecondFragment : Fragment() {
     // This property is only valid between onCreateView and onDestroyView
     private val binding get() = _binding!!
 
-    // Define the ActivityResultLauncher to pick a file
-    private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            val filePath = it.path
-            if (filePath != null) {
-                loadData(filePath)
-            }
-        } ?: run {
-            Toast.makeText(requireContext(), "No file selected", Toast.LENGTH_SHORT).show()
+    private var datUri: Uri? = null
+    private var heaUri: Uri? = null
+
+    private val pickDatLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        datUri = uri
+        checkReadyToLoad()
+    }
+
+    private val pickHeaLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        heaUri = uri
+        checkReadyToLoad()
+    }
+
+    private fun checkReadyToLoad() {
+        if (datUri != null && heaUri != null) {
+            loadData(datUri!!, heaUri!!)
         }
     }
 
@@ -66,43 +73,41 @@ class SecondFragment : Fragment() {
 
     }
 
-    // Open file picker to select a .dat file
     private fun openFilePicker() {
-        // Launch the file picker intent
-        pickFileLauncher.launch("*/*")
+        Toast.makeText(requireContext(), "Select the .dat file", Toast.LENGTH_SHORT).show()
+        pickDatLauncher.launch("*/*")
+
+        Toast.makeText(requireContext(), "Now select the corresponding .hea file", Toast.LENGTH_LONG).show()
+        pickHeaLauncher.launch("*/*")
     }
 
-    // Load and process .dat file
-    private fun loadData(filePath: String) {
+    private fun loadData(datUri: Uri, heaUri: Uri) {
         try {
-            val file = File(filePath)
-            val fileInputStream = FileInputStream(file)
+            val datStream = requireContext().contentResolver.openInputStream(datUri)
+            val heaStream = requireContext().contentResolver.openInputStream(heaUri)
 
-            // Simulate ECG reading - replace with actual .dat file parsing logic (wfdb or custom)
-            val signalData = readEcgData(fileInputStream)
+            if (datStream != null && heaStream != null) {
+                val waveforms = SignalReader(datStream, heaStream).read()
 
-            if (signalData != null) {
-                record = signalData
-                plotEcg(record!!)
+                waveforms[0]?.let { plotEcg(it.samples) }
             } else {
-                Toast.makeText(requireContext(), "Invalid .dat file format", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Failed to open input streams", Toast.LENGTH_SHORT).show()
             }
-
         } catch (e: IOException) {
-            e.printStackTrace()
-            Toast.makeText(requireContext(), "Error reading .dat file", Toast.LENGTH_SHORT).show()
+            Log.d("DAT", "Stack: ${Log.getStackTraceString(e)}")
+            Toast.makeText(requireContext(), "Error reading signal data", Toast.LENGTH_SHORT).show()
         }
     }
 
     // Plot ECG data using MPAndroidChart
-    private fun plotEcg(data: Array<FloatArray>) {
+    private fun plotEcg(data: FloatArray) {
         val entries = ArrayList<Entry>()
-        val fs = 500
-        val duration = data[0].size / fs.toFloat()
+        val fs = 360
+        val duration = data.size / fs.toFloat()
 
         // Populate the chart data
-        for (i in data[0].indices) {
-            entries.add(Entry(i / fs.toFloat(), data[0][i]))
+        for (i in data.indices) {
+            entries.add(Entry(i / fs.toFloat(), data[i]))
         }
 
         val dataSet = LineDataSet(entries, "ECG Signal")
@@ -118,12 +123,6 @@ class SecondFragment : Fragment() {
 
         // Setting chart properties
         chart.setVisibleXRangeMaximum(10f)
-    }
-
-    private fun readEcgData(fileInputStream: FileInputStream): Array<FloatArray>? {
-        return arrayOf(
-            floatArrayOf(0f, 0.5f, 1f, 0.5f, 0f, -0.5f, -1f, -0.5f, 0f) // Placeholder data
-        )
     }
 
     override fun onDestroyView() {

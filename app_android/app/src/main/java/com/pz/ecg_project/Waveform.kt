@@ -1,7 +1,7 @@
 package com.pz.ecg_project
 import org.jtransforms.fft.DoubleFFT_1D
 
-class Waveform(private var sampleRate: Int, private var samples: FloatArray) {
+class Waveform(var sampleRate: Int, var samples: FloatArray) {
 
     fun extractWindows(
         indices: List<Int>,

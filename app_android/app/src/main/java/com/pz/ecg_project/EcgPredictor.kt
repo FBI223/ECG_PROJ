@@ -1,6 +1,7 @@
 package com.pz.ecg_project
 
 import android.content.Context
+import android.util.Log
 import com.pz.ecg_project.ml.ModelFold1
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
@@ -36,8 +37,10 @@ class EcgPredictor(private val context: Context) {
         // Runs model inference and gets result.
         val outputs = model.process(inputFeature0)
         val classProbabilities = outputs.outputFeature0AsTensorBuffer.floatArray
+        val probs = classProbabilities.contentToString()
 
-        val predictedClass = classProbabilities.indices.maxBy { classProbabilities[it] } ?: -1
+        Log.d("Prediction", "Class probabilities: $probs")
+        val predictedClass = classProbabilities.indices.maxBy { classProbabilities[it] }
 
         return predictedClass
 
