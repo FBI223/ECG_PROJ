@@ -158,9 +158,11 @@ class MainActivity : AppCompatActivity() {
                         Log.d("Prediction", "Predicted class: $predictedClass")
 
                         val freqs = IntArray(8)
-                        val labels = arrayOf("NSR", "AF_FLUTTER", "PAC", "PVC", "BBB", "SVT", "AV_BLOCK", "TORSADES")
+                        val labels = arrayOf("NSR ", "AF_FLUTTER ", "PAC ", "PVC ", "BBB ", "SVT ", "AV_BLOCK ", "TORSADES ")
                         freqs[predictedClass]++
-                        viewModel.setPredictionResults(freqs, labels)
+
+                        val maxI = freqs.indices.maxBy { freqs[it] }
+                        viewModel.setPredictionResults(intArrayOf(freqs[maxI]), arrayOf(labels[maxI]))
                     }
                     else {
                         val waveform = Waveform(samplingValue, currData)
