@@ -2,8 +2,8 @@
     <string name="app_name">ECG_PROJECT</string>
     <string name="action_settings">Settings</string>
     <!-- Strings used for fragments for navigation -->
-    <string name="first_fragment_label">First Fragment</string>
-    <string name="second_fragment_label">Second Fragment</string>
+    <string name="first_fragment_label">Live Data</string>
+    <string name="second_fragment_label">Saved Data</string>
     <string name="next">Next</string>
     <string name="previous">Previous</string>
     <string name="load">Load Waveform</string>
@@ -11,5 +11,25 @@
     <string name="welcome">Welcome to the Heart Arrhythmia Detector app!</string>
     <string name="searching_for_ble_device">Searching for heart monitoring device…</string>
     <string name="loading_page">On this screen, you may load a previously saved signal.</string>
+    <string name="save_waveform">Save Waveform</string>
+
+    <string-array name="gender_entries">
+        <item>Male</item>
+        <item>Female</item>
+    </string-array>
+    <string-array name="gender_values">
+        <item>male</item>
+        <item>female</item>
+    </string-array>
+
+    <string-array name="model_entries">
+        <item>Rhythm-based</item>
+        <item>Peak-based</item>
+    </string-array>
+    <string-array name="model_values">
+        <item>rhythm</item>
+        <item>peak</item>
+    </string-array>
+
 
 </resources>

@@ -1,0 +1,32 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <EditTextPreference
+        android:key="sampling_rate"
+        android:title="Sampling Rate (Hz)"
+        android:dialogTitle="Enter sampling rate (Hz)"
+        android:inputType="number"
+        android:defaultValue="128"/>
+
+    <EditTextPreference
+        android:key="age"
+        android:title="Age"
+        android:dialogTitle="Enter your age"
+        android:inputType="number"
+        android:defaultValue="20" />
+
+    <ListPreference
+        android:key="gender"
+        android:title="Gender"
+        android:entries="@array/gender_entries"
+        android:entryValues="@array/gender_values"
+        android:defaultValue="male"/>
+
+    <ListPreference
+        android:key="model"
+        android:title="Model ML"
+        android:entries="@array/model_entries"
+        android:entryValues="@array/model_values"
+        android:defaultValue="peak"/>
+
+
+</PreferenceScreen>

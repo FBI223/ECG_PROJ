@@ -12,18 +12,20 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.github.mikephil.charting.charts.LineChart
 import com.pz.ecg_project.databinding.FragmentSecondBinding
-import java.io.File
 import java.io.IOException
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
-import androidx.navigation.fragment.findNavController
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-class SecondFragment : Fragment() {
+class SavedDataFragment : Fragment() {
 
     private var _binding: FragmentSecondBinding? = null
     private lateinit var chart: LineChart
-    private var record: Array<FloatArray>? = null  // To hold ECG data
+    private var isLoading = false
 
     // This property is only valid between onCreateView and onDestroyView
     private val binding get() = _binding!!
@@ -62,45 +64,63 @@ class SecondFragment : Fragment() {
         // Initialize the LineChart
         chart = binding.lineChart
 
-        binding.buttonSecond.setOnClickListener {
-            findNavController().navigate(R.id.action_SecondFragment_to_FirstFragment)
-        }
-
         // Set up button to trigger file picker
         binding.buttonLoad.setOnClickListener {
-            openFilePicker()
+            if (!isLoading) {
+                openFilePicker()
+            } else {
+                Toast.makeText(requireContext(), "Loading in progress. Please wait...", Toast.LENGTH_SHORT).show()
+            }
         }
 
     }
 
     private fun openFilePicker() {
-        Toast.makeText(requireContext(), "Select the .dat file", Toast.LENGTH_SHORT).show()
+        Toast.makeText(requireContext(), "Select the .hea file", Toast.LENGTH_LONG).show()
         pickDatLauncher.launch("*/*")
 
-        Toast.makeText(requireContext(), "Now select the corresponding .hea file", Toast.LENGTH_LONG).show()
+        Toast.makeText(requireContext(), "Then, select the corresponding .dat file", Toast.LENGTH_LONG).show()
         pickHeaLauncher.launch("*/*")
     }
 
     private fun loadData(datUri: Uri, heaUri: Uri) {
-        try {
-            val datStream = requireContext().contentResolver.openInputStream(datUri)
-            val heaStream = requireContext().contentResolver.openInputStream(heaUri)
+        if (isLoading) {
+            Toast.makeText(requireContext(), "Please wait, waveform is still loading...", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-            if (datStream != null && heaStream != null) {
-                val waveforms = SignalReader(datStream, heaStream).read()
+        isLoading = true
+        Toast.makeText(requireContext(), "Loading signal data...", Toast.LENGTH_LONG).show()
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val waveforms = withContext(Dispatchers.IO) {
+                    val datStream = requireContext().contentResolver.openInputStream(datUri)
+                    val heaStream = requireContext().contentResolver.openInputStream(heaUri)
 
-                waveforms[0]?.let { plotEcg(it.samples) }
-            } else {
-                Toast.makeText(requireContext(), "Failed to open input streams", Toast.LENGTH_SHORT).show()
+                    if (datStream != null && heaStream != null) {
+                        SignalReader(datStream, heaStream).read()
+                    } else null
+                }
+
+                if (waveforms != null && waveforms[0] != null) {
+                    plotEcg(waveforms[0]!!.samples)
+                } else {
+                    Toast.makeText(requireContext(), "Failed to open input streams", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: IOException) {
+                Log.d("DAT", "Stack: ${Log.getStackTraceString(e)}")
+                Toast.makeText(requireContext(), "Error reading signal data", Toast.LENGTH_SHORT).show()
             }
-        } catch (e: IOException) {
-            Log.d("DAT", "Stack: ${Log.getStackTraceString(e)}")
-            Toast.makeText(requireContext(), "Error reading signal data", Toast.LENGTH_SHORT).show()
+            finally {
+                isLoading = false
+            }
         }
     }
 
     // Plot ECG data using MPAndroidChart
     private fun plotEcg(data: FloatArray) {
+        resetChart(chart)
+
         val entries = ArrayList<Entry>()
         val fs = 360
         val duration = data.size / fs.toFloat()
@@ -111,6 +131,9 @@ class SecondFragment : Fragment() {
         }
 
         val dataSet = LineDataSet(entries, "ECG Signal")
+        dataSet.setDrawCircles(false)
+        dataSet.setDrawCircleHole(false)
+
         dataSet.color = ContextCompat.getColor(requireContext(), R.color.holoCyanLight)
         dataSet.valueTextColor = ContextCompat.getColor(requireContext(), R.color.black)
 

@@ -36,7 +36,7 @@ class BluetoothConnection(
     private val incomingDataChannel = Channel<Float>(Channel.UNLIMITED)
     val ecgFlow: Flow<Float> = incomingDataChannel.receiveAsFlow()
 
-    private val bluetoothAdapter: BluetoothAdapter? by lazy {
+    val bluetoothAdapter: BluetoothAdapter? by lazy {
         val manager = context.getSystemService(BluetoothManager::class.java)
         manager?.adapter
     }
@@ -47,6 +47,8 @@ class BluetoothConnection(
 
     private var scanning = false
     private var gatt: BluetoothGatt? = null
+
+    private var isSubscribed = false
 
     private val scanCallback = object : ScanCallback() {
         override fun onScanResult(callbackType: Int, result: ScanResult?) {
@@ -186,6 +188,7 @@ class BluetoothConnection(
             }
 
             Log.d("BLE", "Subscribed to characteristic notifications")
+            isSubscribed = true
         }
 
         private val metaBuffer = StringBuilder()
@@ -240,6 +243,59 @@ class BluetoothConnection(
 
     }
 
+    fun unsubscribe() {
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+        val characteristic = gatt?.getService(serviceUUID)?.getCharacteristic(characteristicUUID)
+        val descriptor = characteristic?.getDescriptor(cccDescriptorUUID)
+
+        gatt?.setCharacteristicNotification(characteristic, false)
+        descriptor?.let { gatt?.writeDescriptor(it, BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE) }
+
+        isSubscribed = false
+    }
+
+    fun resubscribe() {
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.BLUETOOTH_CONNECT
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return
+        }
+        val characteristic = gatt?.getService(serviceUUID)?.getCharacteristic(characteristicUUID)
+        val descriptor = characteristic?.getDescriptor(cccDescriptorUUID)
+
+        gatt?.setCharacteristicNotification(characteristic, false)
+        descriptor?.let { gatt?.writeDescriptor(it, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE) }
+
+        isSubscribed = true
+
+    }
+
+    fun isSubscribed (): Boolean {
+        return isSubscribed
+    }
+
     fun disconnect() {
         if (ActivityCompat.checkSelfPermission(
                 context,
@@ -258,4 +314,6 @@ class BluetoothConnection(
         gatt?.close()
         gatt = null
     }
+
+
 }

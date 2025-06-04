@@ -1,5 +1,6 @@
 package com.pz.ecg_project
 import org.jtransforms.fft.DoubleFFT_1D
+import java.io.OutputStream
 
 class Waveform(var sampleRate: Int, var samples: FloatArray) {
 
@@ -191,5 +192,37 @@ class Waveform(var sampleRate: Int, var samples: FloatArray) {
             }
         }
         return peakIndices
+    }
+
+    fun buildHeaderText(baseFilename: String): String {
+        return buildString {
+            appendLine("$baseFilename 1 $sampleRate ${samples.size}")
+            appendLine("$baseFilename.dat 212 200(0)")
+        }
+    }
+
+    fun writeDatFile(output: OutputStream) {
+        var i = 0
+        while (i < samples.size) {
+            val s1 = floatTo212Sample(samples[i], 200, 0)
+            val s2 = if (i + 1 < samples.size) floatTo212Sample(samples[i + 1], 200, 0) else 0
+
+            val byte0 = (s1 and 0xFF).toByte()
+            val byte1 = (((s2 shr 8) and 0x0F) shl 4 or ((s1 shr 8) and 0x0F)).toByte()
+            val byte2 = (s2 and 0xFF).toByte()
+
+            output.write(byte0.toInt())
+            output.write(byte1.toInt())
+            output.write(byte2.toInt())
+            i += 2
+        }
+    }
+
+    // Convert float sample to signed 12-bit WFDB 212 format sample
+    private fun floatTo212Sample(value: Float, gain: Int, baseline: Int): Int {
+        // Convert float sample back to raw integer sample
+        val scaled = ((value * gain) + baseline).toInt()
+        // Clamp to 12-bit signed range [-2048, 2047]
+        return scaled.coerceIn(-2048, 2047) and 0xFFF
     }
 }

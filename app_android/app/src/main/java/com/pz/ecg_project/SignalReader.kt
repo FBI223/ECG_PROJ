@@ -1,9 +1,7 @@
 package com.pz.ecg_project
 
 import android.util.Log
-import java.io.FileInputStream
 import java.io.InputStream
-import kotlin.math.sign
 
 class SignalReader(private val datFile: InputStream, private val heaFile: InputStream) {
 
